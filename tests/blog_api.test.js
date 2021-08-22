@@ -48,6 +48,21 @@ test('verifying the existence of a property', async () => {
     expect(id).toBeDefined();
 }, 100000);
 
+test('database saved data checking', async () => {
+    const newBlog = {
+        title: 'React Under The Hood',
+        author: 'George Man',
+        url: 'https://reactunderhood.com/',
+        likes: 6,
+    };
+
+    await api.post('/api/blogs').send(newBlog).expect(201);
+    const response = await api.get('/api/blogs');
+    expect(response.body).toHaveLength(blogs.length + 1);
+    const titles = response.body.map((r) => r.title);
+    expect(titles).toContain('React Under The Hood');
+}, 100000);
+
 afterAll(() => {
     mongoose.connection.close();
 });

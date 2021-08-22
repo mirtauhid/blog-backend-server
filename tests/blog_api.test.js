@@ -63,6 +63,35 @@ test('database saved data checking', async () => {
     expect(titles).toContain('React Under The Hood');
 }, 100000);
 
+test('property check', async () => {
+    const newBlog = {
+        title: 'React Under The Hood',
+        author: 'George Man',
+        url: 'https://reactunderhood.com/',
+    };
+
+    if (newBlog.likes === undefined) {
+        newBlog.likes = 0;
+        await api.post('/api/blogs').send(newBlog).expect(201);
+        const response = await api.get('/api/blogs');
+        response.body.map((r) => {
+            if (r.likes === undefined) {
+                r.likes = 0;
+                expect(r.likes).toEqual(0);
+            }
+        });
+    }
+}, 100000);
+
+test('multiple properties check', async () => {
+    const newBlog = {
+        author: 'George Man',
+        likes: 8,
+    };
+
+    await api.post('/api/blogs').send(newBlog).expect(400);
+}, 100000);
+
 afterAll(() => {
     mongoose.connection.close();
 });

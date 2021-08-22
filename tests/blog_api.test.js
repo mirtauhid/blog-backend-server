@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 const mongoose = require('mongoose');
 const supertest = require('supertest');
 const app = require('../app');
@@ -32,13 +33,19 @@ test('all blogs returned', async () => {
     const response = await api.get('/api/blogs');
 
     expect(response.body).toHaveLength(blogs.length);
-});
+}, 100000);
 
 test('should return blogs in json format', async () => {
     await api
         .get('/api/blogs')
         .expect(200)
         .expect('Content-Type', /application\/json/);
+}, 100000);
+
+test('verifying the existence of a property', async () => {
+    const response = await api.get('/api/blogs');
+    const id = response.body.map((r) => r.id);
+    expect(id).toBeDefined();
 }, 100000);
 
 afterAll(() => {

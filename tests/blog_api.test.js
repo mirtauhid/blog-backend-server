@@ -1,5 +1,6 @@
 const supertest = require('supertest');
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 const helper = require('./test_helper');
 const app = require('../app');
 
@@ -8,12 +9,12 @@ const api = supertest(app);
 const Blog = require('../models/blog');
 
 beforeEach(async () => {
-    await Blog.createdDeleteMany({});
+    await Blog.deleteMany({});
     await Blog.insertMany(helper.initialBlogs);
 });
 
 describe('initially stored blogs', () => {
-    test('blogs are returned as json', async () => {
+    test('saved blogs are returned as json', async () => {
         await api
             .get('/api/blogs')
             .expect(200)
@@ -26,7 +27,7 @@ describe('initially stored blogs', () => {
         expect(response.body).toHaveLength(helper.initialBlogs.length);
     });
 
-    test('a specific blog is within the returned blogs', async () => {
+    test('a specific blog in the returned blogs', async () => {
         const response = await api.get('/api/blogs');
 
         const titles = response.body.map((r) => r.title);
@@ -35,7 +36,7 @@ describe('initially stored blogs', () => {
     });
 });
 
-describe('viewing a specific blog', () => {
+describe('finding a specific blog', () => {
     test('succeeds with a valid id', async () => {
         const blogAtStart = await helper.blogsInDb();
 
@@ -59,7 +60,7 @@ describe('viewing a specific blog', () => {
         await api.get(`/api/blogs/${validNonexistingId}`).expect(404);
     });
 
-    test('fails with status code 400 id is invalid', async () => {
+    test('fails with status code 400 if id is invalid', async () => {
         const invalidId = '5a3d5da59070081a82a3445';
 
         await api.get(`/api/blogs/${invalidId}`).expect(400);
@@ -67,41 +68,61 @@ describe('viewing a specific blog', () => {
 });
 
 describe('addition of a new blog', () => {
-    test('succeeds with valid data', async () => {
-        const newBlog = {
-            content: 'async/await simplifies making async calls',
-            important: true,
+    beforeEach(async () => {
+        const newUser = {
+            username: 'mtauhid',
+            password: 'aqsw1234',
         };
 
-        await api
-            .post('/api/blogs')
-            .send(newBlog)
-            .expect(200)
-            .expect('Content-Type', /application\/json/);
+        newUser.password = await bcrypt.hash(newUser.password, 10);
 
-        const blogsAtEnd = await helper.blogsInDb();
-        expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length + 1);
+        const loggedUser = await api.post('/api/login').send(newUser);
 
-        const contents = blogsAtEnd.map((n) => n.content);
-        expect(contents).toContain('async/await simplifies making async calls');
-    });
+        const { token } = loggedUser.body;
 
-    test('fails with status code 400 if data invalid', async () => {
-        const newBlog = {
-            title: 'React under the hood',
-            url: 'reactunderhood.com',
-        };
+        test('addition succeeds with valid data', async () => {
+            const newBlog = {
+                title: 'Script JS under the hook',
+                author: 'Mir Tauhidul',
+                url: 'api/blogs/scriptjs',
+                likes: 8,
+            };
 
-        await api.post('/api/blogs').send(newBlog).expect(400);
+            await api
+                .post('/api/blogs')
+                .send(newBlog)
+                .set({ Authorization: `bearer ${token}` })
+                .expect(200)
+                .expect('Content-Type', /application\/json/);
 
-        const blogsAtEnd = await helper.blogsInDb();
+            const blogsAtEnd = await helper.blogsInDb();
+            expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length + 1);
 
-        expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length);
+            const title = blogsAtEnd.map((n) => n.title);
+            expect(title).toContain('Node JS under the hook');
+        });
+
+        test('fails with status code 400 if data invalid', async () => {
+            const newBlog = {
+                title: 'React under the hood',
+                url: 'react-hood.com',
+            };
+
+            await api
+                .post('/api/blogs')
+                .send(newBlog)
+                .set({ Authorization: `bearer ${token}` })
+                .expect(400);
+
+            const blogsAtEnd = await helper.blogsInDb();
+
+            expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length);
+        });
     });
 });
 
-describe('deletion of a blog', () => {
-    test('succeeds with status code 204 if id is valid', async () => {
+describe('removing a blog', () => {
+    test('removing succeeds with status code 204 if id is valid', async () => {
         const blogsAtStart = await helper.blogsInDb();
         const blogToDelete = blogsAtStart[0];
 

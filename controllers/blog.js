@@ -26,10 +26,9 @@ blogsRouter.get('/:id', async (request, response, next) => {
 
 blogsRouter.put('/:id', async (request, response, next) => {
     const { body } = request;
-    const user = await User.findById(body.userId);
 
     try {
-        const blog = Blog.findByIdAndUpdate(request.params.id, body);
+        const blog = await Blog.findByIdAndUpdate(request.params.id, body);
         if (blog) {
             response.json(blog);
         } else {
